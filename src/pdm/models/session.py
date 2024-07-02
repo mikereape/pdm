@@ -40,6 +40,7 @@ def _create_truststore_ssl_context() -> SSLContext | None:
 
 _ssl_context = _create_truststore_ssl_context()
 CACHES_TTL = 7 * 24 * 60 * 60  # 7 days
+MAX_RETRIES = 4
 
 
 @lru_cache(maxsize=None)
@@ -48,7 +49,7 @@ def _get_transport(
     cert: tuple[str, str | None] | None = None,
     proxy: httpx.Proxy | None = None,
 ) -> httpx.BaseTransport:
-    return httpx.HTTPTransport(verify=verify, cert=cert, trust_env=True, proxy=proxy)
+    return httpx.HTTPTransport(verify=verify, cert=cert, trust_env=True, proxy=proxy, retries=MAX_RETRIES)
 
 
 class MsgPackSerializer(hishel.BaseSerializer):
@@ -128,12 +129,20 @@ class MsgPackSerializer(hishel.BaseSerializer):
 
 
 class PDMPyPIClient(PyPIClient):
-    def __init__(self, *, sources: list[RepositoryConfig], cache_dir: Path, **kwargs: Any) -> None:
+    def __init__(self, *, sources: list[RepositoryConfig], cache_dir: Path | None = None, **kwargs: Any) -> None:
         from httpx._utils import URLPattern
         from unearth.fetchers.sync import LocalFSTransport
 
-        storage = hishel.FileStorage(serializer=MsgPackSerializer(), base_path=cache_dir, ttl=CACHES_TTL)
-        controller = hishel.Controller()
+        if cache_dir is None:
+
+            def cache_transport(transport: httpx.BaseTransport) -> httpx.BaseTransport:
+                return transport
+        else:
+            storage = hishel.FileStorage(serializer=MsgPackSerializer(), base_path=cache_dir, ttl=CACHES_TTL)
+            controller = hishel.Controller()
+
+            def cache_transport(transport: httpx.BaseTransport) -> httpx.BaseTransport:
+                return hishel.CacheTransport(transport, storage, controller)
 
         mounts: dict[str, httpx.BaseTransport] = {"file://": LocalFSTransport()}
         self._trusted_host_ports: set[tuple[str, int | None]] = set()
@@ -148,9 +157,7 @@ class PDMPyPIClient(PyPIClient):
             if s.name == "pypi":
                 kwargs["transport"] = self._transport_for(s)
                 continue
-            mounts[f"{url.scheme}://{url.netloc.decode('ascii')}/"] = hishel.CacheTransport(
-                self._transport_for(s), storage, controller
-            )
+            mounts[f"{url.scheme}://{url.netloc.decode('ascii')}/"] = cache_transport(self._transport_for(s))
         mounts.update(kwargs.pop("mounts", None) or {})
         kwargs.update(follow_redirects=True)
 
@@ -158,7 +165,7 @@ class PDMPyPIClient(PyPIClient):
 
         self.headers["User-Agent"] = self._make_user_agent()
         self.event_hooks["response"].append(self.on_response)
-        self._transport = hishel.CacheTransport(self._transport, storage, controller)  # type: ignore[has-type]
+        self._transport = cache_transport(self._transport)  # type: ignore[has-type]
 
     def _transport_for(self, source: RepositoryConfig) -> httpx.BaseTransport:
         if source.ca_certs:

@@ -253,7 +253,7 @@ function TabExpansion($line, $lastWord) {
                 $completer.AddOpts(@(
                         [Option]::new(@(
                             "--dev", "--output", "--global", "--no-default", "--expandvars", "--prod", "--production", "-g", "-d", "-o",
-                            "--no-hashes", "--no-markers", "-L", "--lockfile", "--self", "--editable-self"
+                            "--no-hashes", "--no-markers", "-L", "--lockfile", "--self", "--editable-self", "--no-extras"
                         )),
                         $formatOption,
                         $sectionOption,
@@ -291,7 +291,7 @@ function TabExpansion($line, $lastWord) {
                     @(
                         [Option]::new(@(
                             "-g", "--global", "--non-interactive", "-n", "--python", "--dist", "--lib", "--copier",
-                            "--cookiecutter", "--overwrite"
+                            "--cookiecutter", "--overwrite", "--license", "--project-version"
                         )),
                         $projectOption,
                         $skipOption,
@@ -402,7 +402,7 @@ function TabExpansion($line, $lastWord) {
                         break
                     }
                     "install" {
-                        $completer.AddOpts(([Option]::new(("--list"))))
+                        $completer.AddOpts(([Option]::new(("--list", "--min"))))
                         $command = $subCommand
                         break
                     }
@@ -430,7 +430,7 @@ function TabExpansion($line, $lastWord) {
             "run" {
                 $completer.AddOpts(
                     @(
-                        [Option]::new(@("--global", "-g", "-l", "--list", "-s", "--site-packages", "--json")),
+                        [Option]::new(@("--global", "-g", "-l", "--list", "-s", "--site-packages", "--json", "--reuse-env")),
                         $skipOption,
                         $venvOption,
                         $projectOption
@@ -482,7 +482,7 @@ function TabExpansion($line, $lastWord) {
             "use" {
                 $completer.AddOpts(
                     @(
-                        [Option]::new(@("--global", "-g", "-f", "--first", "-i", "--ignore-remembered", "--skip")),
+                        [Option]::new(@("--global", "-g", "-f", "--first", "-i", "--ignore-remembered", "--skip", "--auto-install-min", "--auto-install-max")),
                         $venvOption,
                         $projectOption
                     ))

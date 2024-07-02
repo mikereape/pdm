@@ -450,9 +450,9 @@ class PreparedCandidate:
                 if not self.candidate.link:
                     self.candidate.link = self.link
         # find if there is any build cache for the candidate
-        if allow_all and not self.req.editable:
+        if not self.req.editable:
             cached = self._get_build_cache()
-            if cached:
+            if cached and self._wheel_compatible(cached.name, allow_all):
                 self._cached = cached
                 return
         # If not, download and unpack the link
@@ -611,15 +611,15 @@ class PreparedCandidate:
         if self._metadata is None:
             result = self.prepare_metadata()
             if not self.candidate.name:
-                self.req.name = self.candidate.name = cast(str, result.metadata["Name"])
+                self.req.name = self.candidate.name = cast(str, result.metadata.get("Name"))
             if not self.candidate.version:
                 self.candidate.version = result.version
             if not self.candidate.requires_python:
-                self.candidate.requires_python = cast(str, result.metadata["Requires-Python"] or "")
+                self.candidate.requires_python = result.metadata.get("Requires-Python", "")
             self._metadata = result
         return self._metadata
 
-    def get_dependencies_from_metadata(self) -> list[str]:
+    def get_dependencies_from_metadata(self) -> list[Requirement]:
         """Get the dependencies of a candidate from metadata."""
         extras = self.req.extras or ()
         return filter_requirements_with_extras(self.metadata.requires or [], extras)
@@ -627,6 +627,9 @@ class PreparedCandidate:
     def should_cache(self) -> bool:
         """Determine whether to cache the dependencies and built wheel."""
         from unearth import vcs_support
+
+        if not self.environment.project.core.state.enable_cache:
+            return False
 
         link, source_dir = self.candidate.link, self._source_dir
         if self.req.editable:
@@ -646,6 +649,8 @@ class PreparedCandidate:
         return False
 
     def _get_build_cache(self) -> Path | None:
+        if not self.environment.project.core.state.enable_cache:
+            return None
         wheel_cache = self.environment.project.make_wheel_cache()
         assert self.candidate.link
         cache_entry = wheel_cache.get(self.candidate.link, self.candidate.name, self.environment.target_python)

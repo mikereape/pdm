@@ -26,7 +26,7 @@ def list_distributions(plugin_only: bool = False) -> list[Distribution]:
     for dist in working_set.values():
         if not plugin_only or any(ep.group in ("pdm", "pdm.plugin") for ep in dist.entry_points):
             result.append(dist)
-    return sorted(result, key=lambda d: d.metadata["Name"] or "UNKNOWN")
+    return sorted(result, key=lambda d: d.metadata.get("Name", "UNKNOWN"))
 
 
 def run_pip(project: Project, args: list[str]) -> subprocess.CompletedProcess[str]:
@@ -96,12 +96,11 @@ class ListCommand(BaseCommand):
         echo("Installed packages:", err=True)
         rows = []
         for dist in distributions:
-            metadata = dist.metadata
             rows.append(
                 (
-                    f"[success]{metadata['Name']}[/]",
-                    f"[warning]{metadata['Version']}[/]",
-                    metadata["Summary"] or "",
+                    f"[success]{dist.metadata.get('Name')}[/]",
+                    f"[warning]{dist.metadata.get('Version')}[/]",
+                    dist.metadata.get("Summary", ""),
                 ),
             )
         project.core.ui.display_columns(rows)
@@ -246,6 +245,7 @@ class UpdateCommand(BaseCommand):
             )
             sys.exit(1)
         else:
-            project.core.ui.echo(f"[success]Installing version [primary]{version}[/] succeeds.[/]")
+            project.core.ui.echo(f"[success]Successfully installed version [primary]{version}[/][/]")
+            project.core.ui.echo(f"See what's new in this version: [link]{PDM_REPO}/releases/tag/{version}[/]")
             # Update the version value to avoid check update print wrong message
             project.core.version = read_version()

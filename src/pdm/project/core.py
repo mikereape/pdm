@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, cast
 
 import tomlkit
+from pbs_installer import PythonVersion
 from tomlkit.items import Array
 
 from pdm import termui
@@ -32,6 +33,7 @@ from pdm.utils import (
     expand_env_vars_in_auth,
     find_project_root,
     find_python_in_path,
+    get_all_installable_python_versions,
     is_conda_base,
     is_conda_base_python,
     is_path_relative_to,
@@ -110,6 +112,10 @@ class Project:
 
     def __repr__(self) -> str:
         return f"<Project '{self.root.as_posix()}'>"
+
+    @cached_property
+    def cache_dir(self) -> Path:
+        return Path(self.config.get("cache_dir", "")).expanduser()
 
     @cached_property
     def pyproject(self) -> PyProject:
@@ -598,16 +604,6 @@ class Project:
     def backend(self) -> BuildBackend:
         return get_backend_by_spec(self.pyproject.build_system)(self.root)
 
-    @property
-    def cache_dir(self) -> Path:
-        if self._cache_dir is None:
-            self._cache_dir = Path(self.config.get("cache_dir", "")).expanduser()
-        return self._cache_dir
-
-    @cache_dir.setter
-    def cache_dir(self, value: Path) -> None:
-        self._cache_dir = value
-
     def cache(self, name: str) -> Path:
         path = self.cache_dir / name
         try:
@@ -627,16 +623,20 @@ class Project:
         return PackageCache(self.cache("packages"))
 
     def make_candidate_info_cache(self) -> CandidateInfoCache:
-        from pdm.models.caches import CandidateInfoCache
+        from pdm.models.caches import CandidateInfoCache, EmptyCandidateInfoCache
 
         python_hash = hashlib.sha1(str(self.environment.python_requires).encode()).hexdigest()
         file_name = f"package_meta_{python_hash}.json"
-        return CandidateInfoCache(self.cache("metadata") / file_name)
+        return (
+            CandidateInfoCache(self.cache("metadata") / file_name)
+            if self.core.state.enable_cache
+            else EmptyCandidateInfoCache(self.cache("metadata") / file_name)
+        )
 
     def make_hash_cache(self) -> HashCache:
-        from pdm.models.caches import HashCache
+        from pdm.models.caches import EmptyHashCache, HashCache
 
-        return HashCache(directory=self.cache("hashes"))
+        return HashCache(self.cache("hashes")) if self.core.state.enable_cache else EmptyHashCache(self.cache("hashes"))
 
     def iter_interpreters(
         self,
@@ -647,8 +647,6 @@ class Project:
         """Iterate over all interpreters that matches the given specifier.
         And optionally install the interpreter if not found.
         """
-        from pbs_installer._versions import PYTHON_VERSIONS, PythonVersion
-
         from pdm.cli.commands.python import InstallCommand
 
         found = False
@@ -659,12 +657,9 @@ class Project:
         if found or self.is_global:
             return
 
-        def get_version(version: PythonVersion) -> str:
-            return f"{version.major}.{version.minor}.{version.micro}"
-
         if not python_spec:  # handle both empty string and None
             # Get the best match meeting the requires-python
-            best_match = next((v for v in PYTHON_VERSIONS if get_version(v) in self.python_requires), None)
+            best_match = self.get_best_matching_cpython_version()
             if best_match is None:
                 return
             python_spec = str(best_match)
@@ -784,3 +779,26 @@ class Project:
         Returns `None` if both the environment variable and the key does not exists.
         """
         return os.getenv(var.upper()) or self.get_setting(key)
+
+    def get_best_matching_cpython_version(self, use_minimum: bool | None = False) -> PythonVersion | None:
+        """
+        Returns the best matching cPython version that fits requires-python, this platform and arch.
+        If no best match could be found, return None.
+
+        Default for best match strategy is "highest" possible interpreter version. If "minimum" shall be used,
+        set `use_minimum` to True.
+        """
+
+        def get_version(version: PythonVersion) -> str:
+            return f"{version.major}.{version.minor}.{version.micro}"
+
+        all_matches = get_all_installable_python_versions(build_dir=False)
+        filtered_matches = [
+            v for v in all_matches if get_version(v) in self.python_requires and v.implementation.lower() == "cpython"
+        ]
+        if filtered_matches:
+            if use_minimum:
+                return min(filtered_matches, key=lambda v: (v.major, v.minor, v.micro))
+            return max(filtered_matches, key=lambda v: (v.major, v.minor, v.micro))
+
+        return None

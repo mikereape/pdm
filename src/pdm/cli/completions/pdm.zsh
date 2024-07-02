@@ -30,7 +30,7 @@ _pdm() {
     'list:List packages installed in the current working set'
     'lock:Resolve and lock dependencies'
     'self:Manage the PDM program itself (previously known as plugin)'
-    'outdated:Check for outdated packages and list the latest versions'
+    'outdated:Check for outdated packages and list the latest versions on indexes'
     'publish:Build and publish the project to PyPI'
     'python:Manage installed Python interpreters'
     'py:Manage installed Python interpreters'
@@ -82,7 +82,7 @@ _pdm() {
         "--frozen-lockfile[Don't try to create or update the lockfile. \[env var: PDM_FROZEN_LOCKFILE\]]"
         '--venv[Run the command in the virtual environment with the given key. \[env var: PDM_IN_VENV\]]:venv:'
         {-k,--skip}'[Skip some tasks and/or hooks by their comma-separated names]'
-        {-u,--unconstrained}'[Ignore the version constraint of packages]'
+        {-u,--unconstrained}'[Ignore the version constraints in pyproject.toml and overwrite with new ones from the resolution result]'
         {--pre,--prerelease}'[Allow prereleases to be pinned]'
         "--stable[Only allow stable versions to be pinned]"
         {-e+,--editable+}'[Specify editable packages]:packages'
@@ -156,6 +156,7 @@ _pdm() {
         {-f+,--format+}"[Only requirements.txt is supported for now.]:format:(requirements)"
         "--no-hashes[Don't include artifact hashes]"
         "--no-markers[Don't include platform markers]"
+        "--no-extras[Strip extras from the requirements]"
         "--expandvars[Expand environment variables in requirements]"
         "--self[Include the project itself]"
         "--editable-self[Include the project itself as an editable dependency]"
@@ -204,6 +205,8 @@ _pdm() {
         '--python[Specify the Python version/path to use]:python:'
         '--copier[Use Copier to generate project]'
         '--cookiecutter[Use Cookiecutter to generate project]'
+        '--license[Specify the license (SPDX name)]:license:'
+        "--project-version[Specify the project's version]:project_version:"
         '1:template:'
       )
       ;;
@@ -350,6 +353,7 @@ _pdm() {
             install)
               arguments+=(
                 '--list[List all available Python versions]'
+                '--min[Use minimum instead of highest version for installation if `version` is left empty]'
                 ':python:_files'
               )
               ;;
@@ -400,6 +404,7 @@ _pdm() {
         {-g,--global}'[Use the global project, supply the project root with `-p` option]' \
         {-l,--list}'[Show all available scripts defined in pyproject.toml]' \
         '--json[Output all scripts infos in JSON]' \
+        '--reuse-env[Reuse the script environment for self-contained scripts]' \
         {-k,--skip}'[Skip some tasks and/or hooks by their comma-separated names]' \
         {-s,--site-packages}'[Load site-packages from the selected interpreter]' \
         '--venv[Run the command in the virtual environment with the given key. \[env var: PDM_IN_VENV\]]:venv:' \
@@ -471,7 +476,7 @@ _pdm() {
         "--no-sync[Only update lock file but do not sync packages]"
         "--frozen-lockfile[Don't try to create or update the lockfile. \[env var: PDM_FROZEN_LOCKFILE\]]"
         {-k,--skip}'[Skip some tasks and/or hooks by their comma-separated names]'
-        {-u,--unconstrained}'[Ignore the version constraint of packages]'
+        {-u,--unconstrained}'[Ignore the version constraints in pyproject.toml and overwrite with new ones from the resolution result]'
         {--pre,--prerelease}'[Allow prereleases to be pinned]'
         "--stable[Only allow stable versions to be pinned]"
         {-d,--dev}'[Select dev dependencies]'
@@ -489,7 +494,9 @@ _pdm() {
       ;;
     use)
       arguments+=(
-        {-f,--first}'[Select the first matched interpreter]'
+        {-f,--first}'[Select the first matched interpreter -- no auto install]'
+        '--auto-install-min[If `python` argument not given, auto install minimum best match - otherwise has no effect]'
+        '--auto-install-max[If `python` argument not given, auto install maximum best match - otherwise has no effect]'
         {-i,--ignore-remembered}'[Ignore the remembered selection]'
         '--venv[Use the interpreter in the virtual environment with the given name]:venv:'
         '*:python:_files'

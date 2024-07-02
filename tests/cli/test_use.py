@@ -57,8 +57,8 @@ echo hello
 
 
 def test_use_remember_last_selection(project, mocker):
+    (project.cache_dir / "use_cache.json").unlink(missing_ok=True)
     cache = JSONFileCache(project.cache_dir / "use_cache.json")
-    cache.clear()
     do_use = UseCommand().do_use
     do_use(project, first=True)
     cache._read_cache()
@@ -83,3 +83,23 @@ def test_use_venv_python(project, pdm):
     assert project.python.executable.parent.parent.parent == Path(venv_location)
     with pytest.raises(Exception, match="No virtualenv with key 'non-exists' is found"):
         do_use(project, venv="non-exists")
+
+
+def test_use_auto_install_and_no_auto_install_are_mutual_exclusive(project, pdm):
+    command = ["use", "--auto-install-min", "-f"]
+    with pytest.raises(RuntimeError) as error:
+        result = pdm(command, obj=project, strict=True)
+        assert str(error.value).startswith(f"Call command {command} failed")
+        assert result.exit_code != 0
+
+    command = ["use", "--auto-install-max", "-f"]
+    with pytest.raises(RuntimeError) as error:
+        result = pdm(command, obj=project, strict=True)
+        assert str(error.value).startswith(f"Call command {command} failed")
+        assert result.exit_code != 0
+
+    command = ["use", "--auto-install-max", "--auto-install-min"]
+    with pytest.raises(RuntimeError) as error:
+        result = pdm(command, obj=project, strict=True)
+        assert str(error.value).startswith(f"Call command {command} failed")
+        assert result.exit_code != 0

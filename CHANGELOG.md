@@ -1,3 +1,52 @@
+## Release v2.16.1 (2024-06-26)
+
+
+### Bug Fixes
+
+- Fix new interface from pbs_installer regarding `build_dir` and best match auto-install strategy for `pdm use`
+  (same as for `pdm python install --list`) ([#2943](https://github.com/pdm-project/pdm/issues/2943))
+- Fix crash when pdm is used with `importlib-metadata` version 8.0. ([#2974](https://github.com/pdm-project/pdm/issues/2974))
+
+
+## Release v2.16.0 (2024-06-25)
+
+
+### Features & Improvements
+
+- Add `--no-extras` to `pdm export` to strip extras from the requirements. Now the default behavior is to keep extras. ([#2519](https://github.com/pdm-project/pdm/issues/2519))
+- Support PEP 723: running scripts with inline metadata in standalone environment with dependencies. ([#2924](https://github.com/pdm-project/pdm/issues/2924))
+- `pdm use` and `pdm python install` now take `requires-python` into account (incl. from pyproject.toml) if python version
+  not specified and `pdm use` provides auto installation by that. ([#2943](https://github.com/pdm-project/pdm/issues/2943))
+- `--no-isolation` no longer installs `build-requires` nor dynamic build dependencies, to be consistent with `pip`. ([#2944](https://github.com/pdm-project/pdm/issues/2944))
+- Add notifiers in CLI output when global project is being used. ([#2952](https://github.com/pdm-project/pdm/issues/2952))
+- Use `tool.pdm.resolution` table when calculating the content hash of project file, previously only `overrides` table was used.
+  This will change the hash already stored in the lockfile, so bump the lockfile version to `4.4.2`. ([#2956](https://github.com/pdm-project/pdm/issues/2956))
+
+### Bug Fixes
+
+- Add max retries on read timeout or bad connection. ([#2914](https://github.com/pdm-project/pdm/issues/2914))
+- Don't update local files if they don't change. ([#2966](https://github.com/pdm-project/pdm/issues/2966))
+- Don't list python versions that don't have any installation link for the current platform. ([#2970](https://github.com/pdm-project/pdm/issues/2970))
+
+### Documentation
+
+- Clarify the purposes of `pdm outdated` and `--unconstrained` option. ([#2965](https://github.com/pdm-project/pdm/issues/2965))
+- Some clarifications on the interpreter selection and central package cache. ([#2967](https://github.com/pdm-project/pdm/issues/2967))
+
+
+## Release v2.15.4 (2024-05-30)
+
+
+### Bug Fixes
+
+- Build wheel from sdist if available, to make sure sdist is built properly. This behavior is consistent with [pypa/build](https://pypi.org/project/build). ([#2843](https://github.com/pdm-project/pdm/issues/2843))
+- Fix the issue of self-referencing extra dependencies failing to be resolved for local packages. ([#2898](https://github.com/pdm-project/pdm/issues/2898))
+- Fix an issue of max recursion depth error when parsing a poetry project with circular dependencies on local packages. ([#2900](https://github.com/pdm-project/pdm/issues/2900))
+- Fix a bug that VCS dependencies and `--self` don't work in the exported requirements.txt with hashes. ([#2908](https://github.com/pdm-project/pdm/issues/2908))
+- Fix a cache miss when there exist built wheels for a given link. ([#2912](https://github.com/pdm-project/pdm/issues/2912))
+- Don't try to store caches when `--no-cache` is given. ([#2913](https://github.com/pdm-project/pdm/issues/2913))
+
+
 ## Release v2.15.3 (2024-05-20)
 
 

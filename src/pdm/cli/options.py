@@ -236,7 +236,7 @@ def no_isolation_option(
     values: str | Sequence[Any] | None,
     option_string: str | None = None,
 ) -> None:
-    os.environ["PDM_BUILD_ISOLATION"] = "no"
+    project.core.state.build_isolation = False
 
 
 install_group.options.append(no_isolation_option)
@@ -430,7 +430,7 @@ unconstrained_option = Option(
     "--unconstrained",
     action="store_true",
     default=False,
-    help="Ignore the version constraint of packages",
+    help="Ignore the version constraints in pyproject.toml and overwrite with new ones from the resolution result",
 )
 
 

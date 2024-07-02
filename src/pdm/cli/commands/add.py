@@ -140,7 +140,7 @@ class Command(BaseCommand):
             requirements[key] = r
         if requirements:
             project.core.ui.echo(
-                f"Adding packages to [primary]{group}[/] "
+                f"Adding {'[bold]global[/] ' if project.is_global else ''}packages to [primary]{group}[/] "
                 f"{'dev-' if selection.dev else ''}dependencies: "
                 + ", ".join(f"[req]{r.as_line()}[/]" for r in requirements.values())
             )
@@ -155,8 +155,9 @@ class Command(BaseCommand):
         reqs = [
             r for g, deps in all_dependencies.items() if lock_groups is None or g in lock_groups for r in deps.values()
         ]
-        # pre-write the dependencies to the pyproject.toml to make them recognized by the resolver
-        project.add_dependencies(requirements, group, selection.dev or False, write=False)
+        # pre-write the named dependencies to the pyproject.toml to make them recognized by the resolver
+        named_req = {k: r for k, r in requirements.items() if r.is_named}
+        project.add_dependencies(named_req, group, selection.dev or False, write=False)
         with hooks.skipping("post_lock"):
             resolved = do_lock(
                 project,

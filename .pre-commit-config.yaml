@@ -2,28 +2,28 @@ ci:
   autoupdate_schedule: monthly
 repos:
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.15.2
+    rev: v3.16.0
     hooks:
       - id: pyupgrade
         args: [--py38-plus]
         exclude: ^(src/pdm/models/in_process/.*\.py|install-pdm\.py)$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 'v0.4.3'
+    rev: 'v0.5.0'
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix, --show-fixes]
       - id: ruff-format
 
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.6
+    rev: v2.3.0
     hooks:
       - id: codespell  # See pyproject.toml for args
         additional_dependencies:
           - tomli
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.0
+    rev: v1.10.1
     hooks:
       - id: mypy
         args: [src]
